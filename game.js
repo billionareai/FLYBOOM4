@@ -1,17 +1,19 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Новые размеры самолёта
-let planeX = canvas.width/2 - 25; // Исходя из ширины 50 px, чтобы центрировать
-let planeY = canvas.height - 100; // Смещаем немного вверх
+// Параметры самолёта и начальное положение
+let planeX = canvas.width/2 - 25; // самолет шириной 50 px
+let planeY = canvas.height - 100; 
 const planeWidth = 50;
 const planeHeight = 80;
 
+// Параметры пуль
 let bullets = [];
 const bulletWidth = 5;
 const bulletHeight = 10;
 const bulletSpeed = 7;
 
+// Параметры врагов
 let enemies = [];
 const enemyWidth = 30;
 const enemyHeight = 30;
@@ -33,27 +35,37 @@ document.addEventListener("keyup", (e) => {
 
 document.getElementById("fireButton").addEventListener("click", () => {
     if (!gameOver) {
+        console.log("Fire button clicked");
         fireBullet();
     }
 });
 
-// Загрузка нового изображения самолёта
+// Загрузка изображений
 const planeImg = new Image();
-planeImg.src = "plane.png"; // Поместите ваш изображение самолета под этим именем рядом с index.html
+planeImg.src = "plane.png"; // Убедитесь, что этот файл существует
 
 const enemyImg = new Image();
-enemyImg.src = "enemy.png";
+enemyImg.src = "enemy.png"; // Убедитесь, что этот файл существует
 
-const bulletImg = new Image();
-bulletImg.src = "bullet.png";
+// Пуля пока без картинки, для отладки будем рисовать её прямоугольником
+// Если хотите использовать изображение – раскомментируйте строки ниже и убедитесь в корректном пути к bullet.png
+// const bulletImg = new Image();
+// bulletImg.src = "bullet.png"; // Проверьте путь к изображению
+// bulletImg.onload = () => console.log("Bullet image loaded");
+
+// Проверка загрузки изображений самолёта и врага:
+planeImg.onload = () => console.log("Plane image loaded");
+enemyImg.onload = () => console.log("Enemy image loaded");
 
 function fireBullet() {
+    console.log("Firing bullet...");
     bullets.push({
         x: planeX + planeWidth/2 - bulletWidth/2,
         y: planeY,
         width: bulletWidth,
         height: bulletHeight
     });
+    console.log("Current bullets:", bullets);
 }
 
 function spawnEnemy(timestamp) {
@@ -134,12 +146,13 @@ function update(delta, timestamp) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Рисуем самолет с новым спрайтом
+    // Рисуем самолет
     ctx.drawImage(planeImg, planeX, planeY, planeWidth, planeHeight);
 
-    // Рисуем пули
+    // Рисуем пули (для отладки – желтые прямоугольники)
+    ctx.fillStyle = "yellow";
     for (let b of bullets) {
-        ctx.drawImage(bulletImg, b.x, b.y, bulletWidth, bulletHeight);
+        ctx.fillRect(b.x, b.y, b.width, b.height);
     }
 
     // Рисуем врагов
