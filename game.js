@@ -26,9 +26,11 @@ let lives = 3;
 let gameOver = false;
 
 let keys = {};
+
+// Управление с клавиатуры (стрелки + пробел)
 document.addEventListener("keydown", (e) => {
     keys[e.code] = true;
-    // Добавляем стрельбу по нажатию пробела:
+    // Стрельба по нажатию пробела
     if (e.code === "Space" && !gameOver) {
         fireBullet();
     }
@@ -37,13 +39,14 @@ document.addEventListener("keyup", (e) => {
     keys[e.code] = false;
 });
 
+// Кнопка "Огонь!" на экране
 document.getElementById("fireButton").addEventListener("click", () => {
     if (!gameOver) {
         fireBullet();
     }
 });
 
-// Обработчики касаний для мобильных устройств
+// Управление для мобильных устройств (касание экрана)
 canvas.addEventListener("touchstart", handleTouch);
 canvas.addEventListener("touchmove", handleTouch);
 
@@ -52,23 +55,25 @@ function handleTouch(e) {
     const rect = canvas.getBoundingClientRect();
     const touch = e.touches[0];
     const touchX = touch.clientX - rect.left;
-    // Перемещаем самолет по горизонтали к точке касания
+    // Двигаем самолет к горизонтальной позиции касания
     planeX = Math.max(0, Math.min(canvas.width - planeWidth, touchX - planeWidth/2));
 }
 
 // Загрузка изображений
 const planeImg = new Image();
-planeImg.src = "plane.png"; // Убедитесь, что этот файл существует
+planeImg.src = "plane.png"; // Убедитесь что файл существует
 
 const enemyImg = new Image();
-enemyImg.src = "enemy.png"; // Убедитесь, что этот файл существует
-
-// Пули для отладки можно отрисовывать прямоугольниками. После проверки можно вернуть изображение.
-// const bulletImg = new Image();
-// bulletImg.src = "bullet.png";
+enemyImg.src = "enemy.png"; // Убедитесь что файл существует
 
 planeImg.onload = () => console.log("Plane image loaded");
 enemyImg.onload = () => console.log("Enemy image loaded");
+
+// Для отладки пули отображаем прямоугольником
+// Если хотите использовать спрайт пули, раскомментируйте и убедитесь в корректности пути к bullet.png
+// const bulletImg = new Image();
+// bulletImg.src = "bullet.png";
+// bulletImg.onload = () => console.log("Bullet image loaded");
 
 function fireBullet() {
     bullets.push({
@@ -93,7 +98,7 @@ function spawnEnemy(timestamp) {
 function update(delta, timestamp) {
     if (gameOver) return;
 
-    // Движение самолёта с клавиатуры
+    // Движение самолёта (клавиатура)
     if (keys["ArrowLeft"] && planeX > 0) {
         planeX -= 5;
     }
@@ -124,4 +129,82 @@ function update(delta, timestamp) {
         }
 
         // Проверка, достиг ли враг низа
-       
+        if (enemy.y > canvas.height) {
+            enemies.splice(i, 1);
+            lives--;
+            if (lives <= 0) {
+                gameOver = true;
+            }
+        }
+    }
+
+    // Проверка столкновений пуль с врагами
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            if (isColliding(bullets[i], enemies[j])) {
+                bullets.splice(i, 1);
+                enemies.splice(j, 1);
+                score++;
+                break;
+            }
+        }
+    }
+
+    // Усложнение игры со временем
+    if (score > 10) {
+        enemySpeed = 3;
+    }
+    if (score > 20) {
+        spawnInterval = 1000;
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Рисуем самолет
+    ctx.drawImage(planeImg, planeX, planeY, planeWidth, planeHeight);
+
+    // Рисуем пули (желтые прямоугольники)
+    ctx.fillStyle = "yellow";
+    for (let b of bullets) {
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+    }
+
+    // Рисуем врагов
+    for (let e of enemies) {
+        ctx.drawImage(enemyImg, e.x, e.y, e.width, e.height);
+    }
+
+    // Рисуем счет и жизни
+    ctx.fillStyle = "black";
+    ctx.font = "20px Arial";
+    ctx.fillText("Счёт: " + score, 10, 20);
+    ctx.fillText("Жизни: " + lives, 10, 40);
+
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "40px Arial";
+        ctx.fillText("Игра окончена!", canvas.width/2 - 100, canvas.height/2);
+    }
+}
+
+function isColliding(a, b) {
+    return a.x < b.x + b.width &&
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
+}
+
+let lastTime = 0;
+function gameLoop(timestamp) {
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+    update(delta, timestamp);
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
