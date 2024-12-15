@@ -16,17 +16,23 @@
             background: linear-gradient(#87CEEB, #ffffff);
             border: 2px solid #333;
         }
-        #fireButton {
+        #fireButton, #bombButton {
             position: absolute;
             bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
             font-size: 24px;
             padding: 10px 20px;
             cursor: pointer;
             z-index: 999;
         }
-        #fireButton:active {
+        #fireButton {
+            left: 40%;
+            transform: translateX(-40%);
+        }
+        #bombButton {
+            left: 60%;
+            transform: translateX(-60%);
+        }
+        #fireButton:active, #bombButton:active {
             background: #ccc;
         }
     </style>
@@ -34,6 +40,7 @@
 <body>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
     <button id="fireButton">Огонь!</button>
+    <button id="bombButton">Бомба</button>
     <script src="game.js"></script>
 </body>
 </html>
