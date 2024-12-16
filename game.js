@@ -30,6 +30,7 @@ let bombs = [];
 const bombSize = 10;
 const bombSpeed = 3;
 const bombExplosionRadius = 100;
+const bombTriggerRadius = 30; // Радиус, при котором бомба взрывается, даже не столкнувшись физически с врагом
 
 // Параметры врагов
 let enemies = [];
@@ -44,10 +45,11 @@ let lives = 4; // Увеличили жизни
 
 let gameOver = false;
 
-// Взрывы (один кадр)
+// Взрывы (один кадр, но теперь с временем жизни)
 const explosionFrames = 1; 
 const explosionFrameWidth = 64; 
 const explosionFrameHeight = 64;
+const explosionLifeTime = 30; // Время жизни взрыва (в кадрах)
 
 let explosions = [];
 
@@ -144,12 +146,13 @@ function createExplosion(x, y) {
         x: x,
         y: y,
         frame: 0,
-        maxFrame: explosionFrames
+        maxFrame: explosionFrames,
+        life: explosionLifeTime // время жизни взрыва
     });
 }
 
 function explodeBomb(cx, cy) {
-    // Уничтожаем всех врагов в радиусе
+    // Уничтожаем всех врагов в радиусе взрыва бомбы
     for (let i = enemies.length - 1; i >= 0; i--) {
         let ex = enemies[i].x + enemyWidth/2;
         let ey = enemies[i].y + enemyHeight/2;
@@ -189,8 +192,27 @@ function update(delta, timestamp) {
     // Бомбы
     for (let i = bombs.length - 1; i >= 0; i--) {
         bombs[i].y -= bombSpeed;
-        if (bombs[i].y < 0) {
-            explodeBomb(bombs[i].x + bombSize/2, bombs[i].y + bombSize/2);
+
+        // Проверяем близость к врагам - если бомба пролетает рядом с врагом, взрываем
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            let bombCenterX = bombs[i].x + bombSize/2;
+            let bombCenterY = bombs[i].y + bombSize/2;
+            let enemyCenterX = enemies[j].x + enemyWidth/2;
+            let enemyCenterY = enemies[j].y + enemyHeight/2;
+            let dist = Math.hypot(bombCenterX - enemyCenterX, bombCenterY - enemyCenterY);
+            if (dist < bombTriggerRadius) {
+                // Взрываем бомбу прямо сейчас
+                explodeBomb(bombCenterX, bombCenterY);
+                bombs.splice(i, 1);
+                break;
+            }
+        }
+
+        // Если бомба вышла за верхнюю границу, взрываем её
+        if (i < bombs.length && bombs[i] && bombs[i].y < 0) {
+            let bx = bombs[i].x + bombSize/2;
+            let by = bombs[i].y + bombSize/2;
+            explodeBomb(bx, by);
             bombs.splice(i, 1);
         }
     }
@@ -231,20 +253,27 @@ function update(delta, timestamp) {
         }
     }
 
-    // Столкновения бомб с врагами
+    // Столкновения бомб с врагами при прямом попадании (на случай, если оно было раньше)
     for (let i = bombs.length - 1; i >= 0; i--) {
         for (let j = enemies.length - 1; j >= 0; j--) {
             if (isColliding(bombs[i], enemies[j])) {
-                explodeBomb(bombs[i].x + bombSize/2, bombs[i].y + bombSize/2);
+                let bx = bombs[i].x + bombSize/2;
+                let by = bombs[i].y + bombSize/2;
+                explodeBomb(bx, by);
                 bombs.splice(i, 1);
                 break;
             }
         }
     }
 
-    // Взрывы – без анимации кадров (один кадр)
-    // В текущей логике взрывы остаются постоянно.
-    // При желании можно добавить таймер и удалять взрывы через некоторое время.
+    // Взрывы: уменьшаем их lifeTime
+    for (let i = explosions.length - 1; i >= 0; i--) {
+        explosions[i].life--;
+        if (explosions[i].life <= 0) {
+            // Удаляем взрыв
+            explosions.splice(i, 1);
+        }
+    }
 }
 
 function draw() {
@@ -282,15 +311,16 @@ function draw() {
         }
     }
 
-    // Взрывы – один кадр
+    // Взрывы – один кадр, но теперь исчезают через время
     for (let exp of explosions) {
-        let frameIndex = Math.floor(exp.frame); // frame = 0
+        let frameIndex = 0; // поскольку explosionFrames = 1
         if (explosionLoaded) {
             ctx.drawImage(explosionImg,
                 frameIndex * explosionFrameWidth, 0, explosionFrameWidth, explosionFrameHeight,
                 exp.x - explosionFrameWidth/2, exp.y - explosionFrameHeight/2, explosionFrameWidth, explosionFrameHeight
             );
         } else {
+            // fallback: оранжевый круг
             ctx.fillStyle = "orange";
             ctx.beginPath();
             ctx.arc(exp.x, exp.y, 20, 0, Math.PI*2);
@@ -306,27 +336,4 @@ function draw() {
 
     if (gameOver) {
         ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "white";
-        ctx.font = "40px Arial";
-        ctx.fillText("Игра окончена!", canvas.width/2 - 100, canvas.height/2);
-    }
-}
-
-function isColliding(a, b) {
-    return a.x < b.x + b.width &&
-           a.x + a.width > b.x &&
-           a.y < b.y + b.height &&
-           a.y + a.height > b.y;
-}
-
-let lastTime = 0;
-function gameLoop(timestamp) {
-    const delta = timestamp - lastTime;
-    lastTime = timestamp;
-    update(delta, timestamp);
-    draw();
-    requestAnimationFrame(gameLoop);
-}
-
-requestAnimationFrame(gameLoop);
+        ctx.fillRect(0, 0
