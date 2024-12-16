@@ -30,7 +30,7 @@ let bombs = [];
 const bombSize = 10;
 const bombSpeed = 3;
 const bombExplosionRadius = 100;
-const bombTriggerRadius = 30; // Радиус, при котором бомба взрывается, даже не столкнувшись физически с врагом
+const bombTriggerRadius = 30; // Радиус при котором бомба взрывается, если близко к врагу
 
 // Параметры врагов
 let enemies = [];
@@ -41,15 +41,15 @@ let spawnInterval = 1500; // Интервал появления врагов в
 let lastSpawn = 0;
 
 let score = 0;
-let lives = 4; // Увеличили жизни
+let lives = 4; // Дополнительная жизнь
 
 let gameOver = false;
 
-// Взрывы (один кадр, но теперь с временем жизни)
+// Взрывы (один кадр, но с временем жизни)
 const explosionFrames = 1; 
 const explosionFrameWidth = 64; 
 const explosionFrameHeight = 64;
-const explosionLifeTime = 30; // Время жизни взрыва (в кадрах)
+const explosionLifeTime = 30; // После этого взрыв исчезнет
 
 let explosions = [];
 
@@ -141,13 +141,16 @@ function spawnEnemy(timestamp) {
     lastSpawn = timestamp;
 }
 
+// Создадим врага сразу, чтобы объект был виден
+spawnEnemy(0);
+
 function createExplosion(x, y) {
     explosions.push({
         x: x,
         y: y,
         frame: 0,
         maxFrame: explosionFrames,
-        life: explosionLifeTime // время жизни взрыва
+        life: explosionLifeTime
     });
 }
 
@@ -193,26 +196,23 @@ function update(delta, timestamp) {
     for (let i = bombs.length - 1; i >= 0; i--) {
         bombs[i].y -= bombSpeed;
 
-        // Проверяем близость к врагам - если бомба пролетает рядом с врагом, взрываем
+        // Проверяем близость к врагам - если бомба пролетает рядом, взрываем
+        let bombCenterX = bombs[i].x + bombSize/2;
+        let bombCenterY = bombs[i].y + bombSize/2;
         for (let j = enemies.length - 1; j >= 0; j--) {
-            let bombCenterX = bombs[i].x + bombSize/2;
-            let bombCenterY = bombs[i].y + bombSize/2;
             let enemyCenterX = enemies[j].x + enemyWidth/2;
             let enemyCenterY = enemies[j].y + enemyHeight/2;
             let dist = Math.hypot(bombCenterX - enemyCenterX, bombCenterY - enemyCenterY);
             if (dist < bombTriggerRadius) {
-                // Взрываем бомбу прямо сейчас
                 explodeBomb(bombCenterX, bombCenterY);
                 bombs.splice(i, 1);
                 break;
             }
         }
 
-        // Если бомба вышла за верхнюю границу, взрываем её
+        // Если бомба вышла за верхнюю границу, взрываем её там
         if (i < bombs.length && bombs[i] && bombs[i].y < 0) {
-            let bx = bombs[i].x + bombSize/2;
-            let by = bombs[i].y + bombSize/2;
-            explodeBomb(bx, by);
+            explodeBomb(bombCenterX, bombCenterY);
             bombs.splice(i, 1);
         }
     }
@@ -253,7 +253,7 @@ function update(delta, timestamp) {
         }
     }
 
-    // Столкновения бомб с врагами при прямом попадании (на случай, если оно было раньше)
+    // Столкновения бомб с врагами при прямом столкновении
     for (let i = bombs.length - 1; i >= 0; i--) {
         for (let j = enemies.length - 1; j >= 0; j--) {
             if (isColliding(bombs[i], enemies[j])) {
@@ -266,11 +266,10 @@ function update(delta, timestamp) {
         }
     }
 
-    // Взрывы: уменьшаем их lifeTime
+    // Взрывы - уменьшаем время жизни, удаляем по окончании
     for (let i = explosions.length - 1; i >= 0; i--) {
         explosions[i].life--;
         if (explosions[i].life <= 0) {
-            // Удаляем взрыв
             explosions.splice(i, 1);
         }
     }
@@ -283,6 +282,7 @@ function draw() {
     if (planeLoaded) {
         ctx.drawImage(planeImg, planeX, planeY, planeWidth, planeHeight);
     } else {
+        //Fallback: красный прямоугольник
         ctx.fillStyle = "red";
         ctx.fillRect(planeX, planeY, planeWidth, planeHeight);
     }
@@ -306,21 +306,21 @@ function draw() {
         if (enemyLoaded) {
             ctx.drawImage(enemyImg, e.x, e.y, e.width, e.height);
         } else {
+            //Fallback: зелёный прямоугольник
             ctx.fillStyle = "green";
             ctx.fillRect(e.x, e.y, e.width, e.height);
         }
     }
 
-    // Взрывы – один кадр, но теперь исчезают через время
+    // Взрывы – один кадр, исчезают по таймеру
     for (let exp of explosions) {
-        let frameIndex = 0; // поскольку explosionFrames = 1
         if (explosionLoaded) {
             ctx.drawImage(explosionImg,
-                frameIndex * explosionFrameWidth, 0, explosionFrameWidth, explosionFrameHeight,
+                0, 0, explosionFrameWidth, explosionFrameHeight,
                 exp.x - explosionFrameWidth/2, exp.y - explosionFrameHeight/2, explosionFrameWidth, explosionFrameHeight
             );
         } else {
-            // fallback: оранжевый круг
+            //Fallback: оранжевый круг
             ctx.fillStyle = "orange";
             ctx.beginPath();
             ctx.arc(exp.x, exp.y, 20, 0, Math.PI*2);
@@ -332,8 +332,3 @@ function draw() {
     ctx.fillStyle = "black";
     ctx.font = "20px Arial";
     ctx.fillText("Счёт: " + score, 10, 20);
-    ctx.fillText("Жизни: " + lives, 10, 40);
-
-    if (gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(0, 0
